@@ -67,29 +67,30 @@ public class HTTPReqGenTest implements ITest {
 
     
     @BeforeTest
-    @Parameters("workBook")
+    @Parameters("workBook")//使用testng.xml中的parameter选项作为参数传递给setup方法，这里传递的是Http_Request_workbook_Data.xlsx
     public void setup(String path) {
         filePath = path;
      
         try {
+        	//创建excel文件实例
             wb = new XSSFWorkbook(new FileInputStream(filePath));
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
         }
-        inputSheet = wb.getSheet("Input");
-        baselineSheet = wb.getSheet("Baseline");
+        inputSheet = wb.getSheet("Input");//创建Input sheet实例
+        baselineSheet = wb.getSheet("Baseline");//创建baseline sheet实例
 
-        SheetUtils.removeSheetByName(wb, "Output");
-        SheetUtils.removeSheetByName(wb, "Comparison");
-        SheetUtils.removeSheetByName(wb, "Result");
-        outputSheet = wb.createSheet("Output");
-        comparsionSheet = wb.createSheet("Comparison");
-        resultSheet = wb.createSheet("Result");
+        SheetUtils.removeSheetByName(wb, "Output");//删除Output sheet
+        SheetUtils.removeSheetByName(wb, "Comparison");//删除Comparison sheet
+        SheetUtils.removeSheetByName(wb, "Result");//删除Result sheet
+        outputSheet = wb.createSheet("Output");//新建Output sheet
+        comparsionSheet = wb.createSheet("Comparison");//新建Comparison sheet
+        resultSheet = wb.createSheet("Result");//新建Result sheet
 
         try {    	   
-               FileInputStream fis = new FileInputStream(new File(templatePath));
+               FileInputStream fis = new FileInputStream(new File(templatePath));//创建到http_request_template.txt的输入流
         	   template = IOUtils.toString(fis, Charset.defaultCharset());
         } catch (Exception e) {
             Assert.fail("Problem fetching data from input file:" + e.getMessage());
@@ -145,6 +146,7 @@ public class HTTPReqGenTest implements ITest {
         }
         
         String baseline_message = myBaselineData.get_record(ID).get("Response");
+        System.out.println("Reponse code: " + response.statusCode());
 
         if (response.statusCode() == 200)
             try {
@@ -152,20 +154,18 @@ public class HTTPReqGenTest implements ITest {
             	//System.out.println(outputSheet.getSheetName() + "\t\t"+response.asString() + "\t\t" + ID+"\t\t"+test_case);
                 
                 JSONCompareResult result = JSONCompare.compareJSON(StringUtil.removeSpaces(baseline_message), StringUtil.removeSpaces(response.asString()), JSONCompareMode.NON_EXTENSIBLE);
-               
+                DataWriter.writeData(wb,resultSheet, result, ID, test_case);
              
                 if (!result.passed()) {
+                	DataWriter.setCellFail(wb,outputSheet, ID);
                     DataWriter.writeData(comparsionSheet, result.getMessage(), ID, test_case);
                   //  System.out.println(comparsionSheet.getSheetName() + "\t\t"+result + "\t\t" + ID+"\t\t"+test_case);
-                    DataWriter.writeData(resultSheet, "false", ID, test_case, 0);
+                    //DataWriter.writeData(resultSheet, "false", ID, test_case, 0);
                    // System.out.println(resultSheet.getSheetName() + "\t\tfalse\t\t" + ID+"\t\t"+test_case +"\t\t0");
                   //  DataWriter.writeData(outputSheet);
                     failedcase++;
                     Assert.fail(result.getMessage());
-                } else {
-                   DataWriter.writeData(resultSheet, "true", ID, test_case, 0);
-                   //	System.out.println(resultSheet.getSheetName() + "\t\ttrue"+"\t\t"+ ID+"\t\t"+test_case + "\t\t0");
-                }
+                } 
             } catch (JSONException e) {
                 DataWriter.writeData(comparsionSheet, "", "Problem to assert Response and baseline messages: "+e.getMessage(), ID, test_case);
                 DataWriter.writeData(resultSheet, "error", ID, test_case, 0);
