@@ -175,7 +175,7 @@ public class HTTPReqGenTest implements ITest {
                 } 
             } catch (JSONException e) {
                 DataWriter.writeData(comparsionSheet, "", "Problem to assert Response and baseline messages: "+e.getMessage(), ID, test_case);
-                DataWriter.writeData(resultSheet, "error", ID, test_case, 0);
+                DataWriter.writeData(resultSheet, "error", ID, test_case);
             	 // System.out.println(comparsionSheet.getSheetName() + "\t\tProblem to assert Response and baseline messages: "+e.getMessage()+ "\t\t"+ ID +"\t\t"+ test_case);
                 
                 
@@ -187,11 +187,11 @@ public class HTTPReqGenTest implements ITest {
            //  System.out.println(outputSheet.getSheetName() + "\t\t" +response.statusLine()+ "\t\t" + ID+"\t\t" + test_case );
 
             if (baseline_message.equals(response.statusLine())) {
-             DataWriter.writeData(resultSheet, "true", ID, test_case, 0);
+             DataWriter.writeData(resultSheet, "true", ID, test_case);
              //  	System.out.println(resultSheet.getSheetName() + "\t\ttrue"+"\t\t"+ ID+"\t\t"+test_case + "\t\t0");
             } else {
                 DataWriter.writeData(comparsionSheet, baseline_message, response.statusLine(), ID, test_case);
-                DataWriter.writeData(resultSheet, "false", ID, test_case, 0);
+                DataWriter.writeData(resultSheet, "false", ID, test_case);
                 // System.out.println(resultSheet.getSheetName() + "\t\tfalse\t\t"+ ID + "\t\t0" );
 //             DataWriter.writeData(outputSheet);
                 failedcase++;
