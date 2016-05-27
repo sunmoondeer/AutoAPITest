@@ -16,28 +16,29 @@ import org.skyscreamer.jsonassert.JSONCompareResult;
 public class DataWriter {
 
 	
-	public static void writeData(XSSFSheet comparsionSheet, String result, String iD, String test_case) {
-		int lastNum = comparsionSheet.getLastRowNum();
-		//System.out.println("lastNum:"+lastNum);
-		if(0 == lastNum){
-			writeSheet(comparsionSheet.createRow(lastNum),"ID","TestCase","Response");
-			//lastNum ++;
-		}
+	public static void writeData(XSSFSheet sheet, String result, String iD, String test_case) {
 		try {
-			writeSheet(comparsionSheet.createRow(Integer.parseInt(iD)),iD,test_case,result);
-			//writeSheet(comparsionSheet.createRow(lastNum),result,iD,test_case);原代码这块写的有问题，当iD传入为2时，
-			//lastNum=1,创建的是第一行，把之前的第一行覆盖掉了
+			writeSheet(sheet.createRow(Integer.parseInt(iD)),iD,test_case,result);
 		}catch (NumberFormatException e) {
 		    e.printStackTrace();
 		}
-		
-		/*if(0 == lastNum){
-			writeSheet(comparsionSheet.createRow(lastNum),"comparsionDetail","ID","TestCase");
-			lastNum ++;
-		}
-		writeSheet(comparsionSheet.createRow(lastNum),result,iD,test_case);*/
 	}
 	
+	public static int writeComparisonData(XSSFSheet sheet, String result, String iD, String test_case, int num) {
+		try {
+			writeSheet(sheet.createRow(num),iD,test_case,result);
+			num++;
+		}catch (NumberFormatException e) {
+		    e.printStackTrace();
+		}
+		return num;
+	}
+	/*
+	 * Summary:Test result write into resultSheet
+	 * @param XSSFWorkbook: Excel instance
+	 * @param XSSFSheet: sheet instance
+	 * @param JSONCompareResult: json compare result
+	 */
 	public static void writeData(XSSFWorkbook wb,XSSFSheet resultSheet, JSONCompareResult result, String iD, String test_case) {
 		String testresult = null;
 		if(result.passed()) {
@@ -46,12 +47,6 @@ public class DataWriter {
 			testresult = "FAILED";
 		}
 		
-		int lastNum = resultSheet.getLastRowNum();
-		//System.out.println("lastNum:"+lastNum);
-		if(0 == lastNum){
-			writeSheet(resultSheet.createRow(lastNum),"ID","TestCase","Result");
-			//lastNum ++;
-		}
 		try {
 			if("PASSED".equals(testresult)) {
 				writeSheet(resultSheet.createRow(Integer.parseInt(iD)),iD,test_case,testresult);
@@ -59,30 +54,30 @@ public class DataWriter {
 				writeSheet(resultSheet.createRow(Integer.parseInt(iD)),iD,test_case,testresult);
 				setCellResultFail(wb,resultSheet,iD);
 			}
-			
-			//writeSheet(comparsionSheet.createRow(lastNum),result,iD,test_case);原代码这块写的有问题，当iD传入为2时，
-			//lastNum=1,创建的是第一行，把之前的第一行覆盖掉了
 		}catch (NumberFormatException e) {
 		    e.printStackTrace();
 		}
 		
 	}
-	public static void setCellFail(XSSFWorkbook wb,XSSFSheet comparsionSheet,String iD) {
+	/*
+	 * Summary: Set cell background color to red when test fail
+	 */
+	public static void setCellFail(XSSFWorkbook wb,XSSFSheet sheet,String iD) {
 		CellStyle style = wb.createCellStyle();
 		style.setFillForegroundColor(IndexedColors.RED.getIndex());
 		style.setFillPattern(CellStyle.SOLID_FOREGROUND);
-		XSSFRow rowPf = comparsionSheet.getRow(Integer.parseInt(iD)); 
+		XSSFRow rowPf = sheet.getRow(Integer.parseInt(iD)); 
 		XSSFCell cellPf = rowPf.getCell(1);
 		System.out.println("cell content:" + cellPf.getStringCellValue());
 		//cellPf.setCellValue("X39");
 		cellPf.setCellStyle(style);
 	}
 	
-	public static void setCellResultFail(XSSFWorkbook wb,XSSFSheet comparsionSheet,String iD) {
+	public static void setCellResultFail(XSSFWorkbook wb,XSSFSheet sheet,String iD) {
 		CellStyle style = wb.createCellStyle();
 		style.setFillForegroundColor(IndexedColors.RED.getIndex());
 		style.setFillPattern(CellStyle.SOLID_FOREGROUND);
-		XSSFRow rowPf = comparsionSheet.getRow(Integer.parseInt(iD)); 
+		XSSFRow rowPf = sheet.getRow(Integer.parseInt(iD)); 
 		XSSFCell cellPf = rowPf.getCell(2);
 		System.out.println("cell content:" + cellPf.getStringCellValue());
 		//cellPf.setCellValue("X39");
