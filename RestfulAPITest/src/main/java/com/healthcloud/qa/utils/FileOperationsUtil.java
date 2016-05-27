@@ -215,7 +215,7 @@ public class FileOperationsUtil {
     	String testReportDir = userDir + File.separator + "testReport" + File.separator + TimeUtil.getCurrentTime() + fileName;
     	String newFile = testReportDir.replace("Result.xls",".xls");
     	System.out.println(" newFile: " + newFile);
-       	String recString = "未执行复制！";
+       	//String recString = "未执行复制！";
            try { 
                int bytesum = 0; 
                int byteread = 0; 
@@ -233,15 +233,15 @@ public class FileOperationsUtil {
                    } 
                    inStream.close(); 
                    files.close();
-                   recString = "文件复制成功！";
+                   System.out.println("文件复制成功！");
                } 
            } 
            catch (Exception e) { 
-               recString = "文件复制异常失败！";
+               System.out.println("文件复制异常失败！");
                e.printStackTrace(); 
 
            } 
-    	return recString;
+    	return newFile;
        } 
     public static void main(String[] args) {
     	FileOperationsUtil.copyFile("Http_Request_workbook_Data.xlsx");
