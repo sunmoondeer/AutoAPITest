@@ -15,6 +15,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+
 import org.apache.commons.io.IOUtils;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -30,8 +31,10 @@ import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Parameters;
 import org.testng.annotations.Test;
+
 import com.healthcloud.qa.utils.DataReader;
 import com.healthcloud.qa.utils.DataWriter;
+import com.healthcloud.qa.utils.FileOperationsUtil;
 import com.healthcloud.qa.utils.HTTPReqGen;
 import com.healthcloud.qa.utils.RecordHandler;
 import com.healthcloud.qa.utils.SheetUtils;
@@ -44,6 +47,7 @@ public class HTTPReqGenTest implements ITest {
     private DataReader myInputData;
     private DataReader myBaselineData;
     private String template;
+    private int num = 1;
 
     public String getTestName() {
         return "API Test";
@@ -52,6 +56,7 @@ public class HTTPReqGenTest implements ITest {
    private String userDir = System.getProperty("user.dir");
    String filePath = "";
    String templatePath =  userDir + File.separator + "http_request_template.txt";
+   String reportPath = null;
     
     XSSFWorkbook wb = null;
     XSSFSheet inputSheet = null;
@@ -68,12 +73,12 @@ public class HTTPReqGenTest implements ITest {
     
     @BeforeTest
     @Parameters("workBook")//使用testng.xml中的parameter选项作为参数传递给setup方法，这里传递的是Http_Request_workbook_Data.xlsx
-    public void setup(String path) {
-        filePath = path;
+    public void setup(String fileName) {
+        reportPath = FileOperationsUtil.copyFile(fileName);
      
         try {
         	//创建excel文件实例
-            wb = new XSSFWorkbook(new FileInputStream(filePath));
+            wb = new XSSFWorkbook(new FileInputStream(reportPath));
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {
@@ -81,13 +86,10 @@ public class HTTPReqGenTest implements ITest {
         }
         inputSheet = wb.getSheet("Input");//创建Input sheet实例
         baselineSheet = wb.getSheet("Baseline");//创建baseline sheet实例
-
-        SheetUtils.removeSheetByName(wb, "Output");//删除Output sheet
-        SheetUtils.removeSheetByName(wb, "Comparison");//删除Comparison sheet
-        SheetUtils.removeSheetByName(wb, "Result");//删除Result sheet
-        outputSheet = wb.createSheet("Output");//新建Output sheet
-        comparsionSheet = wb.createSheet("Comparison");//新建Comparison sheet
-        resultSheet = wb.createSheet("Result");//新建Result sheet
+        outputSheet = wb.getSheet("Output");
+        comparsionSheet = wb.getSheet("Comparison");
+        resultSheet = wb.getSheet("Result");
+        
 
         try {    	   
                FileInputStream fis = new FileInputStream(new File(templatePath));//创建到http_request_template.txt的输入流
@@ -150,16 +152,21 @@ public class HTTPReqGenTest implements ITest {
 
         if (response.statusCode() == 200)
             try {
+            	//Write response json to outputSheet
                 DataWriter.writeData(outputSheet, response.asString(), ID, test_case);
-            	//System.out.println(outputSheet.getSheetName() + "\t\t"+response.asString() + "\t\t" + ID+"\t\t"+test_case);
-                
+            	//System.out.println(outputSheet.getSheetName() + "\t\t"+response.asString() + "\t\t" + ID+"\t\t"+test_case); 
+            	//Get the json compare result
                 JSONCompareResult result = JSONCompare.compareJSON(StringUtil.removeSpaces(baseline_message), StringUtil.removeSpaces(response.asString()), JSONCompareMode.NON_EXTENSIBLE);
+                //Write json compare result into resultSheet
                 DataWriter.writeData(wb,resultSheet, result, ID, test_case);
-             
+                
                 if (!result.passed()) {
+                	//Set failed testcase in outputSheet background to Red
                 	DataWriter.setCellFail(wb,outputSheet, ID);
-                    DataWriter.writeData(comparsionSheet, result.getMessage(), ID, test_case);
-                  //  System.out.println(comparsionSheet.getSheetName() + "\t\t"+result + "\t\t" + ID+"\t\t"+test_case);
+                	//Get json compare message and write into comparsionSheet
+                	//DataWriter.writeComparisonData(comparsionSheet, result, iD, test_case, num)
+                    num = DataWriter.writeComparisonData(comparsionSheet, result.getMessage(), ID, test_case, num);
+                    //System.out.println(comparsionSheet.getSheetName() + "\t\t"+result + "\t\t" + ID+"\t\t"+test_case);
                     //DataWriter.writeData(resultSheet, "false", ID, test_case, 0);
                    // System.out.println(resultSheet.getSheetName() + "\t\tfalse\t\t" + ID+"\t\t"+test_case +"\t\t0");
                   //  DataWriter.writeData(outputSheet);
@@ -202,7 +209,7 @@ public class HTTPReqGenTest implements ITest {
         //   System.out.println(resultSheet.getSheetName() + "\t\t"+ totalcase + "\t\t" + failedcase + "\t\t" + startTime + "\t\t" + endTime);
         
         try {
-            FileOutputStream fileOutputStream = new FileOutputStream(filePath);
+            FileOutputStream fileOutputStream = new FileOutputStream(reportPath);
             wb.write(fileOutputStream);
             fileOutputStream.close();
         } catch (FileNotFoundException e) {
