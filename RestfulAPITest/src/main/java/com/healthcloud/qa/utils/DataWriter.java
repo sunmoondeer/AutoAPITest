@@ -89,10 +89,11 @@ public class DataWriter {
 		}
 	}
 
-	public static void writeData(XSSFSheet resultSheet, String string, String iD, String test_case, int i) {
+/*	public static void writeData(XSSFSheet resultSheet, String string, String iD, String test_case, int i) {
 		int lastNum = resultSheet.getLastRowNum();
 		writeSheet(resultSheet.createRow(lastNum+1),string,iD,test_case);
-	}
+	}*/
+	
 
 	public static void writeData(XSSFSheet comparsionSheet, String string, String iD, String iD2, String test_case) {
 		int lastNum = comparsionSheet.getLastRowNum();
