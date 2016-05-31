@@ -16,6 +16,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+import net.sf.json.JSONObject;
+
 import org.apache.commons.io.IOUtils;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -23,6 +25,7 @@ import org.json.JSONException;
 import org.skyscreamer.jsonassert.JSONCompare;
 import org.skyscreamer.jsonassert.JSONCompareMode;
 import org.skyscreamer.jsonassert.JSONCompareResult;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.testng.Assert;
 import org.testng.ITest;
 import org.testng.ITestContext;
@@ -36,6 +39,8 @@ import com.healthcloud.qa.utils.DataReader;
 import com.healthcloud.qa.utils.DataWriter;
 import com.healthcloud.qa.utils.FileOperationsUtil;
 import com.healthcloud.qa.utils.HTTPReqGen;
+import com.healthcloud.qa.utils.JDBCTemplateUtil;
+import com.healthcloud.qa.utils.ParseProperties;
 import com.healthcloud.qa.utils.RecordHandler;
 import com.healthcloud.qa.utils.SheetUtils;
 import com.healthcloud.qa.utils.StringUtil;
@@ -137,67 +142,142 @@ public class HTTPReqGenTest implements ITest {
 
     @Test(dataProvider = "WorkBookData", description = "ReqGenTest")
     public void api_test(String ID, String test_case) {
+    	String sql = myInputData.get_record(ID).get("SQL");
+    	System.out.println("SQL : " + sql);
+    	if(sql.equals("")) {
+    		 HTTPReqGen myReqGen = new HTTPReqGen();
 
-        HTTPReqGen myReqGen = new HTTPReqGen();
+    	        try {
+    	            myReqGen.generate_request(template, myInputData.get_record(ID));
+    	            response = myReqGen.perform_request();
+    	        } catch (Exception e) {
+    	            Assert.fail("Problem using HTTPRequestGenerator to generate response: " + e.getMessage());
+    	        }
+    	        
+    	        String baseline_message = myBaselineData.get_record(ID).get("Response");
+    	        System.out.println("Reponse code: " + response.statusCode());
 
-        try {
-            myReqGen.generate_request(template, myInputData.get_record(ID));
-            response = myReqGen.perform_request();
-        } catch (Exception e) {
-            Assert.fail("Problem using HTTPRequestGenerator to generate response: " + e.getMessage());
-        }
-        
-        String baseline_message = myBaselineData.get_record(ID).get("Response");
-        System.out.println("Reponse code: " + response.statusCode());
+    	        if (response.statusCode() == 200)
+    	            try {
+    	            	//Write response json to outputSheet
+    	                DataWriter.writeData(outputSheet, response.asString(), ID, test_case);
+    	            	//System.out.println(outputSheet.getSheetName() + "\t\t"+response.asString() + "\t\t" + ID+"\t\t"+test_case); 
+    	            	//Get the json compare result
+    	                JSONCompareResult result = JSONCompare.compareJSON(StringUtil.removeSpaces(baseline_message), StringUtil.removeSpaces(response.asString()), JSONCompareMode.NON_EXTENSIBLE);
+    	                //Write json compare result into resultSheet
+    	                DataWriter.writeData(wb,resultSheet, result, ID, test_case);
+    	                
+    	                if (!result.passed()) {
+    	                	//Set failed testcase in outputSheet background to Red
+    	                	DataWriter.setCellFail(wb,outputSheet, ID);
+    	                	//Get json compare message and write into comparsionSheet
+    	                	//DataWriter.writeComparisonData(comparsionSheet, result, iD, test_case, num)
+    	                    num = DataWriter.writeComparisonData(comparsionSheet, result.getMessage(), ID, test_case, num);
+    	                    //System.out.println(comparsionSheet.getSheetName() + "\t\t"+result + "\t\t" + ID+"\t\t"+test_case);
+    	                    //DataWriter.writeData(resultSheet, "false", ID, test_case, 0);
+    	                   // System.out.println(resultSheet.getSheetName() + "\t\tfalse\t\t" + ID+"\t\t"+test_case +"\t\t0");
+    	                  //  DataWriter.writeData(outputSheet);
+    	                    failedcase++;
+    	                    Assert.fail(result.getMessage());
+    	                } 
+    	            } catch (JSONException e) {
+    	                DataWriter.writeData(comparsionSheet, "", "Problem to assert Response and baseline messages: "+e.getMessage(), ID, test_case);
+    	                DataWriter.writeData(resultSheet, "error", ID, test_case);
+    	            	 // System.out.println(comparsionSheet.getSheetName() + "\t\tProblem to assert Response and baseline messages: "+e.getMessage()+ "\t\t"+ ID +"\t\t"+ test_case);
+    	                
+    	                
+    	                failedcase++;
+    	                Assert.fail("Problem to assert Response and baseline messages: " + e.getMessage());
+    	            }
+    	        else {
+    	           DataWriter.writeData(outputSheet, response.statusLine(), ID, test_case);
+    	           //  System.out.println(outputSheet.getSheetName() + "\t\t" +response.statusLine()+ "\t\t" + ID+"\t\t" + test_case );
 
-        if (response.statusCode() == 200)
-            try {
-            	//Write response json to outputSheet
-                DataWriter.writeData(outputSheet, response.asString(), ID, test_case);
-            	//System.out.println(outputSheet.getSheetName() + "\t\t"+response.asString() + "\t\t" + ID+"\t\t"+test_case); 
-            	//Get the json compare result
-                JSONCompareResult result = JSONCompare.compareJSON(StringUtil.removeSpaces(baseline_message), StringUtil.removeSpaces(response.asString()), JSONCompareMode.NON_EXTENSIBLE);
-                //Write json compare result into resultSheet
-                DataWriter.writeData(wb,resultSheet, result, ID, test_case);
-                
-                if (!result.passed()) {
-                	//Set failed testcase in outputSheet background to Red
+    	            if (baseline_message.equals(response.statusLine())) {
+    	             DataWriter.writeData(resultSheet, "true", ID, test_case);
+    	             //  	System.out.println(resultSheet.getSheetName() + "\t\ttrue"+"\t\t"+ ID+"\t\t"+test_case + "\t\t0");
+    	            } else {
+    	                DataWriter.writeData(comparsionSheet, baseline_message, response.statusLine(), ID, test_case);
+    	                DataWriter.writeData(resultSheet, "false", ID, test_case);
+    	                // System.out.println(resultSheet.getSheetName() + "\t\tfalse\t\t"+ ID + "\t\t0" );
+//    	             DataWriter.writeData(outputSheet);
+    	                failedcase++;
+    	                Assert.assertFalse(true);
+    	            }
+    	        }
+    	} else {
+    		ParseProperties file = new ParseProperties();
+    		String filepath = System.getProperty("user.dir") + File.separator + File.separator + "server.properties";
+    		String dbHostName = file.getValue("b2bsettle.db.host", filepath);
+    	    String dbPort = file.getValue("b2bsettle.db.port", filepath);
+    	    String dbName = file.getValue("b2bsettle.db.database", filepath);
+    	    String dbUser = file.getValue("b2bsettle.db.user", filepath);
+    	    String dbPasswd = file.getValue("b2bsettle.db.password", filepath);
+    	    String dbUrl = "jdbc:mysql://" + dbHostName + ":" + dbPort + "/" + dbName;
+    	    JdbcTemplate db = new JDBCTemplateUtil().getMySQLJdbcTemplate(dbUrl, dbUser, dbPasswd);
+    	    HTTPReqGen myReqGen = new HTTPReqGen();
+
+	        try {
+	            myReqGen.generate_request(template, myInputData.get_record(ID));
+	            response = myReqGen.perform_request();
+	        } catch (Exception e) {
+	            Assert.fail("Problem using HTTPRequestGenerator to generate response: " + e.getMessage());
+	        }
+	        if (response.statusCode() == 200) {
+	        	try {
+	        	  DataWriter.writeData(outputSheet, response.asString(), ID, test_case);
+	        	/*
+	        	 * Transfer response to Json object
+	        	 */
+	        	JSONObject initResponse = JSONObject.fromObject(response.asString());
+	 	        JSONObject compareResponse = new JSONObject();
+	 	        String[] columnName = JDBCTemplateUtil.getColumnName(sql, db);
+	 	        /*
+	 	         * Create new json object, only include db verify
+	 	         */
+	 	        /*for(int i=0; i<columnName.length; i++) {
+	  	        	compareResponse.put(columnName[i], initResponse.get(columnName));
+	  	        }*/
+	 	       compareResponse.put("name", "费用报销");
+	 	       compareResponse.put("parent_id", "41");
+	 	        String[] rowValue = JDBCTemplateUtil.getRowsValue(sql, db);
+	 	        int[] rowType = JDBCTemplateUtil.getRowsType(sql, db);
+	 	        /*
+	 	         * DB response transfer to json object
+	 	         */
+	  	        JSONObject dbResponse = new JSONObject();
+	  	        for(int i=0; i<columnName.length; i++) {
+	  	        	System.out.println("列名:" + columnName[i]);
+	  	        	System.out.println("值:" + rowValue[i]);
+	  	        	dbResponse.put(columnName[i], rowValue[i]);
+	  	        }
+	  	      
+	  	    	System.out.println(compareResponse.toString());
+	  	    	System.out.println(dbResponse.toString());
+	  	    	JSONCompareResult result = JSONCompare.compareJSON(StringUtil.removeSpaces(compareResponse.toString()), StringUtil.removeSpaces(dbResponse.toString()), JSONCompareMode.NON_EXTENSIBLE);
+	  	    	DataWriter.writeData(wb,resultSheet, result, ID, test_case);
+	  	    	if (!result.passed()) {
                 	DataWriter.setCellFail(wb,outputSheet, ID);
-                	//Get json compare message and write into comparsionSheet
-                	//DataWriter.writeComparisonData(comparsionSheet, result, iD, test_case, num)
                     num = DataWriter.writeComparisonData(comparsionSheet, result.getMessage(), ID, test_case, num);
-                    //System.out.println(comparsionSheet.getSheetName() + "\t\t"+result + "\t\t" + ID+"\t\t"+test_case);
-                    //DataWriter.writeData(resultSheet, "false", ID, test_case, 0);
-                   // System.out.println(resultSheet.getSheetName() + "\t\tfalse\t\t" + ID+"\t\t"+test_case +"\t\t0");
-                  //  DataWriter.writeData(outputSheet);
                     failedcase++;
                     Assert.fail(result.getMessage());
                 } 
-            } catch (JSONException e) {
-                DataWriter.writeData(comparsionSheet, "", "Problem to assert Response and baseline messages: "+e.getMessage(), ID, test_case);
+			} catch (JSONException e) {
+				DataWriter.writeData(comparsionSheet, "", "Problem to assert Response and baseline messages: "+e.getMessage(), ID, test_case);
                 DataWriter.writeData(resultSheet, "error", ID, test_case);
-            	 // System.out.println(comparsionSheet.getSheetName() + "\t\tProblem to assert Response and baseline messages: "+e.getMessage()+ "\t\t"+ ID +"\t\t"+ test_case);
-                
-                
                 failedcase++;
                 Assert.fail("Problem to assert Response and baseline messages: " + e.getMessage());
-            }
-        else {
-           DataWriter.writeData(outputSheet, response.statusLine(), ID, test_case);
-           //  System.out.println(outputSheet.getSheetName() + "\t\t" +response.statusLine()+ "\t\t" + ID+"\t\t" + test_case );
-
-            if (baseline_message.equals(response.statusLine())) {
-             DataWriter.writeData(resultSheet, "true", ID, test_case);
-             //  	System.out.println(resultSheet.getSheetName() + "\t\ttrue"+"\t\t"+ ID+"\t\t"+test_case + "\t\t0");
-            } else {
-                DataWriter.writeData(comparsionSheet, baseline_message, response.statusLine(), ID, test_case);
-                DataWriter.writeData(resultSheet, "false", ID, test_case);
-                // System.out.println(resultSheet.getSheetName() + "\t\tfalse\t\t"+ ID + "\t\t0" );
-//             DataWriter.writeData(outputSheet);
-                failedcase++;
-                Assert.assertFalse(true);
-            }
-        }
+			}
+	        }else {
+ 	           DataWriter.writeData(outputSheet, response.statusLine(), ID, test_case);
+ 	                DataWriter.writeData(resultSheet, "false", ID, test_case);
+ 	                failedcase++;
+ 	                Assert.assertFalse(true);
+ 	            
+ 	        }
+	       
+    	}
+       
     }
 
 
