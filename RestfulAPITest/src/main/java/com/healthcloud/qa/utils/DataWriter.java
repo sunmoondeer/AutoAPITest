@@ -68,7 +68,7 @@ public class DataWriter {
 		style.setFillPattern(CellStyle.SOLID_FOREGROUND);
 		XSSFRow rowPf = sheet.getRow(Integer.parseInt(iD)); 
 		XSSFCell cellPf = rowPf.getCell(1);
-		System.out.println("cell content:" + cellPf.getStringCellValue());
+		//System.out.println("cell content:" + cellPf.getStringCellValue());
 		//cellPf.setCellValue("X39");
 		cellPf.setCellStyle(style);
 	}
@@ -79,7 +79,7 @@ public class DataWriter {
 		style.setFillPattern(CellStyle.SOLID_FOREGROUND);
 		XSSFRow rowPf = sheet.getRow(Integer.parseInt(iD)); 
 		XSSFCell cellPf = rowPf.getCell(2);
-		System.out.println("cell content:" + cellPf.getStringCellValue());
+		//System.out.println("cell content:" + cellPf.getStringCellValue());
 		//cellPf.setCellValue("X39");
 		cellPf.setCellStyle(style);
 	}
